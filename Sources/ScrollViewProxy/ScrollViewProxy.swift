@@ -4,6 +4,7 @@
 import SwiftUI
 import Introspect
 
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
     /// Creates a ScrollView with a ScrollViewReader
     public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
@@ -13,6 +14,7 @@ extension ScrollView {
     }
 }
 
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension View {
     /// Adds an ID to this view so you can scroll to it with `ScrollViewProxy.scrollTo(_:alignment:animated:)`
     public func id<ID: Hashable>(_ id: ID, scrollView proxy: ScrollViewProxy<ID>) -> some View {
@@ -25,6 +27,7 @@ extension View {
     }
 }
 
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     private var content: (ScrollViewProxy<ID>) -> Content
 
@@ -41,6 +44,7 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     }
 }
 
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewProxy<ID: Hashable> {
     fileprivate class Coordinator<ID: Hashable> {
         var frames = [ID: CGRect]()
