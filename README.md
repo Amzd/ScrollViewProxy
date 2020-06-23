@@ -2,6 +2,8 @@ As of June 22nd this is included in the SwiftUI beta. https://developer.apple.co
 
 The Apple implementation uses just `.id(_:)` and I had update issues with that where Views with an id sometimes won't update when their ObservedObject changed. Maybe this has been fixed in the new SwiftUI beta.
 
+Also the Apple implementation only supports iOS 14 so I think this repo is still useful.
+
 # ScrollViewProxy
 
 Adds `ScrollViewReader` and `ScrollViewProxy` that help you scroll to locations in a ScrollView
