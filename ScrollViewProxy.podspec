@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://github.com/amzd/ScrollViewProxy'
   s.author           = { 'Casper Zandbergen' => 'info@casperzandbergen.nl' }
   s.source           = { :git => 'https://github.com/amzd/ScrollViewProxy.git', :tag => s.version.to_s }
-  
+  s.dependency 'Introspect'
   s.ios.deployment_target = '11.0'
   s.source_files = 'Sources/**/*.swift'
 end
