@@ -68,7 +68,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     public func scrollTo(_ id: ID, alignment: Alignment = .top, animated: Bool = true) {
         guard let scrollView = coordinator.scrollView else { return }
         guard let cellFrame = coordinator.frames[id] else {
-            return print("ID not found, make sure to add views with `.id(_:scrollView:)`")
+            return print("ID (\(id)) not found, make sure to add views with `.id(_:scrollView:)`")
         }
 
         let visibleFrame = frame(cellFrame, with: alignment)
