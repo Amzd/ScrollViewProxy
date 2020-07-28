@@ -30,7 +30,8 @@ extension View {
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     private var content: (ScrollViewProxy<ID>) -> Content
-
+    private var scrollDelegate = ScrollDelegate()
+    
     @State private var proxy = ScrollViewProxy<ID>()
 
     public init(@ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
@@ -40,8 +41,20 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     public var body: some View {
         content(proxy)
             .coordinateSpace(name: proxy.space)
-            .introspectScrollView { self.proxy.coordinator.scrollView = $0 }
-    }
+            .introspectScrollView { scrollView in
+                self.proxy.coordinator.scrollView = scrollView
+                scrollView.delegate = self.scrollDelegate
+                self.scrollDelegate.onScroll = {
+                    self.proxy.offset = CGPoint(x: scrollView.contentOffset.x + scrollView.adjustedContentInset.horizontal, 
+                        y: scrollView.contentOffset.y + scrollView.adjustedContentInset.vertical)
+                }
+        }
+    } 
+}
+
+fileprivate class ScrollDelegate: NSObject, UIScrollViewDelegate {
+   var onScroll: () -> () = {}
+   func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll() }
 }
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
@@ -74,6 +87,10 @@ public struct ScrollViewProxy<ID: Hashable> {
         let visibleFrame = frame(cellFrame, with: alignment)
         scrollView.scrollRectToVisible(visibleFrame, animated: animated)
     }
+    
+    /// The point at which the origin of the content view is offset from the origin of the scroll view,
+    /// adjusted for automatic insets.
+    var offset: CGPoint = .zero
 
     private func frame(_ frame: CGRect, with alignment: Alignment) -> CGRect {
         guard let scrollView = coordinator.scrollView else { return frame }
