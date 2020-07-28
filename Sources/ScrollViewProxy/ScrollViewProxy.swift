@@ -12,6 +12,12 @@ extension ScrollView {
             ScrollViewReader { content($0) }
         })
     }
+
+    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, proxy: Binding<ScrollViewProxy<ID>>, @ViewBuilder content: @escaping () -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
+        self.init(axes, showsIndicators: showsIndicators, content: {
+            ScrollViewReader(proxy: proxy, content: content)
+        })
+    }
 }
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
@@ -27,26 +33,56 @@ extension View {
     }
 }
 
+fileprivate enum BindingWrapper<Value> {
+    case `internal`(State<Value>)
+    case external(Binding<Value>)
+    var actual: Binding<Value> {
+        switch self {
+        case .internal(let state):
+            return state.projectedValue
+        case .external(let binding):
+            return binding
+        }
+    }
+    
+    init(_ value: Value) {
+        self = .internal(State(initialValue: value))
+    }
+    
+    init(_ binding: Binding<Value>) {
+        self = .external(binding)
+    }    
+}
+
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     private var content: (ScrollViewProxy<ID>) -> Content
     private var scrollDelegate = ScrollDelegate()
-    
-    @State private var proxy = ScrollViewProxy<ID>()
+
+    private var proxy: BindingWrapper<ScrollViewProxy<ID>>
 
     public init(@ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
         self.content = content
+        self.proxy = .init(ScrollViewProxy<ID>())
     }
+    
+    public init(proxy: Binding<ScrollViewProxy<ID>>, @ViewBuilder content: @escaping () -> Content) {
+       self.content = { _ in content() }
+       self.proxy = .init(proxy)
+    } 
+
 
     public var body: some View {
-        content(proxy)
-            .coordinateSpace(name: proxy.space)
+        content(proxy.actual.wrappedValue)
+            .coordinateSpace(name: proxy.actual.wrappedValue.space)
             .introspectScrollView { scrollView in
-                self.proxy.coordinator.scrollView = scrollView
+                self.proxy.actual.wrappedValue.coordinator.scrollView = scrollView
                 scrollView.delegate = self.scrollDelegate
                 self.scrollDelegate.onScroll = {
-                    self.proxy.offset = CGPoint(x: scrollView.contentOffset.x + scrollView.adjustedContentInset.horizontal, 
-                        y: scrollView.contentOffset.y + scrollView.adjustedContentInset.vertical)
+                    self.proxy.actual.wrappedValue.offset = CGPoint(
+                        x: scrollView.contentOffset.x + scrollView.adjustedContentInset.horizontal, 
+                        y: scrollView.contentOffset.y + scrollView.adjustedContentInset.vertical
+                    )
                 }
         }
     } 
@@ -66,7 +102,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     fileprivate var coordinator = Coordinator<ID>()
     fileprivate var space: UUID = UUID()
     
-    fileprivate init() { }
+    init() {}
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
