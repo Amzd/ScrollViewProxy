@@ -103,7 +103,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     fileprivate var coordinator = Coordinator<ID>()
     fileprivate var space: UUID = UUID()
     
-    init() {}
+    public init() {}
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
@@ -127,7 +127,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     
     /// The point at which the origin of the content view is offset from the origin of the scroll view,
     /// adjusted for automatic insets.
-    var offset: CGPoint = .zero
+    public var offset: CGPoint = .zero
 
     private func frame(_ frame: CGRect, with alignment: Alignment) -> CGRect {
         guard let scrollView = coordinator.scrollView else { return frame }
