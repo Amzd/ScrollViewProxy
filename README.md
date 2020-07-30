@@ -60,42 +60,43 @@ ScrollView { proxy in
 Everything put together in an example
 
 ```swift
-
 struct ScrollViewProxySimpleExample: View {
     
     @State var randomInt = Int.random(in: 0..<200)
-    @State var proxy = ScrollViewProxy<Int>()
+    @State var offset = CGPoint()
+    @State var proxy: ScrollViewProxy<Int>?
     
     var body: some View {
         VStack {
-            Text(proxy.offset.debugDescription)
-            ScrollView(proxy: $proxy) {
+            Text(offset.debugDescription)
+            ScrollView(offset: $offset) { proxy in
                 ForEach(0..<200) { index in
                     VStack {
                         Text("\(index)").font(.title)
                         Spacer()
                     }
                     .padding()
-                    .id(index, scrollView: self.proxy)
+                    .id(index, scrollView: proxy)
+                    .onAppear { self.proxy = proxy }
                 }
             }
             HStack {
                 Button(action: {
-                    self.proxy.scrollTo(self.randomInt, alignment: .center)
+                    self.proxy?.scrollTo(self.randomInt, alignment: .center)
                     self.randomInt = Int.random(in: 0..<200)
                 }, label: {
                     Text("Go to \(self.randomInt)")
                 })
                 Spacer()
-                Button(action: { self.proxy.scrollTo(.top) }, label: {
+                Button(action: { self.proxy?.scrollTo(.top) }, label: {
                     Text("Top")
                 })
                 Spacer()
-                Button(action: { self.proxy.scrollTo(.center) }, label: {
+                Button(action: { self.proxy?.scrollTo(.center) }, label: {
                     Text("Center")
                 })
                 Spacer()
-                Button(action: { self.proxy.scrollTo(.bottom) }, label: {
+                Button(action: { self.proxy?.scrollTo(.bottom) }, label: {
                     Text("Bottom")
                 })
             }

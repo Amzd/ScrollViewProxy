@@ -7,15 +7,15 @@ import Introspect
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
     /// Creates a ScrollView with a ScrollViewReader
-    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
+    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, offset: Binding<CGPoint> = .constant(.zero), @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
         self.init(axes, showsIndicators: showsIndicators, content: {
-            ScrollViewReader { content($0) }
+            ScrollViewReader(offset: offset, content: content)
         })
     }
 
-    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, proxy: Binding<ScrollViewProxy<ID>>, @ViewBuilder content: @escaping () -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
+    public init<ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, offset: Binding<CGPoint>, @ViewBuilder content: @escaping () -> ProxyContent) where Content == ScrollViewReader<Never, ProxyContent> {
         self.init(axes, showsIndicators: showsIndicators, content: {
-            ScrollViewReader(proxy: proxy, content: content)
+            ScrollViewReader(offset: offset, content: content)
         })
     }
 }
@@ -34,59 +34,41 @@ extension View {
 }
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
-fileprivate enum BindingWrapper<Value> {
-    case `internal`(State<Value>)
-    case external(Binding<Value>)
-    var actual: Binding<Value> {
-        switch self {
-        case .internal(let state):
-            return state.projectedValue
-        case .external(let binding):
-            return binding
-        }
-    }
-    
-    init(_ value: Value) {
-        self = .internal(State(initialValue: value))
-    }
-    
-    init(_ binding: Binding<Value>) {
-        self = .external(binding)
-    }    
-}
-
-@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     private var content: (ScrollViewProxy<ID>) -> Content
     private var scrollDelegate = ScrollDelegate()
 
-    private var proxy: BindingWrapper<ScrollViewProxy<ID>>
+    @State private var proxy = ScrollViewProxy<ID>()
+    @Binding private var offset: CGPoint
 
-    public init(@ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
+    public init(offset: Binding<CGPoint> = .constant(.zero), @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
         self.content = content
-        self.proxy = .init(ScrollViewProxy<ID>())
+        self._offset = offset
     }
-    
-    public init(proxy: Binding<ScrollViewProxy<ID>>, @ViewBuilder content: @escaping () -> Content) {
-       self.content = { _ in content() }
-       self.proxy = .init(proxy)
-    } 
-
 
     public var body: some View {
-        content(proxy.actual.wrappedValue)
-            .coordinateSpace(name: proxy.actual.wrappedValue.space)
+        content(proxy)
+            .coordinateSpace(name: proxy.space)
             .introspectScrollView { scrollView in
-                self.proxy.actual.wrappedValue.coordinator.scrollView = scrollView
+                self.proxy.coordinator.scrollView = scrollView
                 scrollView.delegate = self.scrollDelegate
                 self.scrollDelegate.onScroll = {
-                    self.proxy.actual.wrappedValue.offset = CGPoint(
+                    self.offset = CGPoint(
                         x: scrollView.contentOffset.x + scrollView.adjustedContentInset.horizontal, 
                         y: scrollView.contentOffset.y + scrollView.adjustedContentInset.vertical
                     )
+                    self.proxy.offset = self.offset
                 }
         }
     } 
+}
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+extension ScrollViewReader where ID == Never {
+    public init(offset: Binding<CGPoint>, @ViewBuilder content: @escaping () -> Content) {
+        self.content = { _ in content() }
+        self._offset = offset
+    }
 }
 
 fileprivate class ScrollDelegate: NSObject, UIScrollViewDelegate {
@@ -103,7 +85,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     fileprivate var coordinator = Coordinator<ID>()
     fileprivate var space: UUID = UUID()
     
-    public init() {}
+    fileprivate init() {}
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
@@ -127,7 +109,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     
     /// The point at which the origin of the content view is offset from the origin of the scroll view,
     /// adjusted for automatic insets.
-    public var offset: CGPoint = .zero
+    public internal(set) var offset: CGPoint = .zero
 
     private func frame(_ frame: CGRect, with alignment: Alignment) -> CGRect {
         guard let scrollView = coordinator.scrollView else { return frame }
