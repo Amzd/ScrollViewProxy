@@ -51,6 +51,7 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
             .coordinateSpace(name: proxy.space)
             .introspectScrollView { scrollView in
                 self.proxy.coordinator.scrollView = scrollView
+                assert(scrollView.delegate == nil, "UIScrollView has an existing delegate")
                 scrollView.delegate = self.scrollDelegate
                 self.scrollDelegate.onScroll = {
                     self.offset = CGPoint(
