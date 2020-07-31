@@ -9,7 +9,7 @@ Also the Apple implementation only supports iOS 14 so I think this repo is still
 Adds `ScrollViewReader` and `ScrollViewProxy` that help you scroll to locations in a ScrollView
 
 
-To get a ScrollViewProxy you can either use the conveinience init on ScrollView
+To get a ScrollViewProxy you can either use the convenience init on ScrollView
 
 ```swift
 ScrollView { proxy in
@@ -37,12 +37,12 @@ public func scrollTo(_ alignment: Alignment, animated: Bool = true)
 public func scrollTo(_ id: ID, alignment: Alignment = .top, animated: Bool = true)
 ```
 
-To use the scroll to ID function you have to add a view with that ID to the ScrollViewProxy
+To use the scroll to ID function you have to add a view with that ID to the view hierarchy
 
 ```swift
 ScrollView { proxy in
     HStack { ... }
-        .id("someId", scrollView: proxy)
+        .scrollId("someId")
 }
 ```
 
@@ -50,8 +50,14 @@ You can also read the scroll offset
 
 ```swift
 ScrollView { proxy in
-    ...
-    Text("\(proxy.offset.debugDescription)")
+    Text("\(self.offset.debugDescription)").onAppear {
+        self.proxy = proxy
+        DispatchQueue.main.async {
+            self.proxy?.onScroll = { offset in 
+                self.offset = offset
+            }
+        }
+    }
 }
 ```
 
@@ -60,30 +66,43 @@ ScrollView { proxy in
 Everything put together in an example
 
 ```swift
+
 struct ScrollViewProxySimpleExample: View {
-    
-    @State var randomInt = Int.random(in: 0..<200)
+    @State var randomInt = Int.random(in: 0 ..< 200)
     @State var offset = CGPoint()
     @State var proxy: ScrollViewProxy<Int>?
-    
+
+    var numbers: some View {
+        ForEach(0 ..< 200) { index in
+            VStack {
+                Text("\(index)").font(.title)
+                Spacer()
+            }
+            .padding()
+            .scrollId(index)
+        }
+    }
+
     var body: some View {
         VStack {
             Text(offset.debugDescription)
-            ScrollView(offset: $offset) { proxy in
-                ForEach(0..<200) { index in
-                    VStack {
-                        Text("\(index)").font(.title)
-                        Spacer()
+            ScrollView {
+                ScrollViewReader { (proxy: ScrollViewProxy<Int>) in 
+                    self.numbers.onAppear {
+                        self.proxy = proxy
+                        // Avoid undefined behavior by assigning in the next tick
+                        DispatchQueue.main.async {
+                            self.proxy?.onScroll = { offset in 
+                                self.offset = offset
+                            }
+                        }
                     }
-                    .padding()
-                    .id(index, scrollView: proxy)
-                    .onAppear { self.proxy = proxy }
                 }
             }
             HStack {
                 Button(action: {
                     self.proxy?.scrollTo(self.randomInt, alignment: .center)
-                    self.randomInt = Int.random(in: 0..<200)
+                    self.randomInt = Int.random(in: 0 ..< 200)
                 }, label: {
                     Text("Go to \(self.randomInt)")
                 })
