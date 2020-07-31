@@ -133,7 +133,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     }
     
     /// Called with offset on scroll.
-    var onScroll: ((CGPoint) -> ()) {
+    public var onScroll: ((CGPoint) -> ()) {
         get { self.coordinator.onScroll }
         set { self.coordinator.onScroll = newValue } 
     }
