@@ -7,15 +7,15 @@ import Introspect
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
     /// Creates a ScrollView with a ScrollViewReader
-    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, offset: Binding<CGPoint> = .constant(.zero), @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
+    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, onScroll: @escaping (UIScrollView) -> () = { _ in }, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
         self.init(axes, showsIndicators: showsIndicators, content: {
-            ScrollViewReader(offset: offset, content: content)
+            ScrollViewReader(onScroll: onScroll, content: content)
         })
     }
 
-    public init<ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, offset: Binding<CGPoint>, @ViewBuilder content: @escaping () -> ProxyContent) where Content == ScrollViewReader<Never, ProxyContent> {
+    public init<ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true,  onScroll: @escaping  (UIScrollView) -> (), @ViewBuilder content: @escaping () -> ProxyContent) where Content == ScrollViewReader<Never, ProxyContent> {
         self.init(axes, showsIndicators: showsIndicators, content: {
-            ScrollViewReader(offset: offset, content: content)
+            ScrollViewReader(onScroll: onScroll, content: content)
         })
     }
 }
@@ -36,14 +36,13 @@ extension View {
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     private var content: (ScrollViewProxy<ID>) -> Content
-    private var scrollDelegate = ScrollDelegate()
+    private var scrollDelegate: ScrollDelegate
 
     @State private var proxy = ScrollViewProxy<ID>()
-    @Binding private var offset: CGPoint
 
-    public init(offset: Binding<CGPoint> = .constant(.zero), @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
+    public init(onScroll: @escaping (UIScrollView) -> Void = { _ in }, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
         self.content = content
-        self._offset = offset
+        scrollDelegate = .init(onScroll: onScroll)
     }
 
     public var body: some View {
@@ -51,14 +50,10 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
             .coordinateSpace(name: proxy.space)
             .introspectScrollView { scrollView in
                 self.proxy.coordinator.scrollView = scrollView
-                assert(scrollView.delegate == nil, "UIScrollView has an existing delegate")
-                scrollView.delegate = self.scrollDelegate
-                self.scrollDelegate.onScroll = {
-                    self.offset = CGPoint(
-                        x: scrollView.contentOffset.x + scrollView.adjustedContentInset.horizontal, 
-                        y: scrollView.contentOffset.y + scrollView.adjustedContentInset.vertical
-                    )
-                    self.proxy.offset = self.offset
+                if scrollView.delegate == nil {
+                    scrollView.delegate = self.scrollDelegate
+                } else {
+                    assert(self.scrollDelegate === scrollView.delegate, "UIScrollView has an existing delegate")
                 }
         }
     } 
@@ -66,15 +61,18 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollViewReader where ID == Never {
-    public init(offset: Binding<CGPoint>, @ViewBuilder content: @escaping () -> Content) {
+    public init(onScroll: @escaping (UIScrollView) -> (), @ViewBuilder content: @escaping () -> Content) {
         self.content = { _ in content() }
-        self._offset = offset
+        self.scrollDelegate = .init(onScroll: onScroll)
     }
 }
 
 fileprivate class ScrollDelegate: NSObject, UIScrollViewDelegate {
-   var onScroll: () -> () = {}
-   func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll() }
+   var onScroll: (UIScrollView) -> Void
+   func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll(scrollView) }
+   init(onScroll: @escaping (UIScrollView) -> Void) {
+       self.onScroll = onScroll
+   }
 }
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
