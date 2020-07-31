@@ -23,13 +23,39 @@ extension ScrollView {
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension View {
     /// Adds an ID to this view so you can scroll to it with `ScrollViewProxy.scrollTo(_:alignment:animated:)`
-    public func id<ID: Hashable>(_ id: ID, scrollView proxy: ScrollViewProxy<ID>) -> some View {
-        func save(geometry: GeometryProxy) -> some View {
-            proxy.save(geometry: geometry, for: id)
-            return Color.clear
-        }
+    public func scrollId<ID: Hashable>(_ id: ID) -> some View {
+        modifier(ScrollViewProxyPreferenceModifier(id: id))
+    }
+}
 
-        return self.background(GeometryReader(content: save(geometry:)))
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+struct ScrollViewProxyPreferenceData<ID: Hashable>: Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    var geometry: GeometryProxy
+    var id: ID
+}
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+struct ScrollViewProxyPreferenceKey<ID: Hashable>: PreferenceKey {
+    static var defaultValue: [ScrollViewProxyPreferenceData<ID>] { [] }
+    static func reduce(value: inout Value, nextValue: () -> Value) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+struct ScrollViewProxyPreferenceModifier<ID: Hashable>: ViewModifier {
+    let id: ID
+    func body(content: Content) -> some View {
+        content.background(GeometryReader { geometry in
+            Color.clear.preference(
+                key: ScrollViewProxyPreferenceKey<ID>.self,
+                value: [.init(geometry: geometry, id: self.id)]
+            )
+        })
     }
 }
 
@@ -48,6 +74,15 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     public var body: some View {
         content(proxy)
             .coordinateSpace(name: proxy.space)
+            .transformPreference(ScrollViewProxyPreferenceKey<ID>.self) { preferences in
+                preferences.forEach { preference in
+                    self.proxy.save(geometry: preference.geometry, for: preference.id)
+                }
+            }
+            .onPreferenceChange(ScrollViewProxyPreferenceKey<ID>.self) { _ in
+                // seems this will not be called due to ScrollView/Preference issues
+                // https://stackoverflow.com/a/61765994/3019595
+            }
             .introspectScrollView { scrollView in
                 self.proxy.coordinator.scrollView = scrollView
                 if scrollView.delegate == nil {
