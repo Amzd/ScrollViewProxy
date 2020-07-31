@@ -9,13 +9,7 @@ extension ScrollView {
     /// Creates a ScrollView with a ScrollViewReader
     public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, onScroll: @escaping (UIScrollView) -> Void = { _ in }, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
         self.init(axes, showsIndicators: showsIndicators, content: {
-            ScrollViewReader(onScroll: onScroll, content: content)
-        })
-    }
-
-    public init<ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, onScroll: @escaping (UIScrollView) -> Void, @ViewBuilder content: @escaping () -> ProxyContent) where Content == ScrollViewReader<Never, ProxyContent> {
-        self.init(axes, showsIndicators: showsIndicators, content: {
-            ScrollViewReader(onScroll: onScroll, content: content)
+            ScrollViewReader(content: content)
         })
     }
 }
@@ -62,13 +56,11 @@ struct ScrollViewProxyPreferenceModifier<ID: Hashable>: ViewModifier {
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     private var content: (ScrollViewProxy<ID>) -> Content
-    private var scrollDelegate: ScrollDelegate
 
     @State private var proxy = ScrollViewProxy<ID>()
 
-    public init(onScroll: @escaping (UIScrollView) -> Void = { _ in }, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
+    public init( @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
         self.content = content
-        scrollDelegate = .init(onScroll: onScroll)
     }
 
     public var body: some View {
@@ -85,27 +77,14 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
             }
             .introspectScrollView { scrollView in
                 self.proxy.coordinator.scrollView = scrollView
-                if scrollView.delegate == nil {
-                    scrollView.delegate = self.scrollDelegate
-                } else {
-                    assert(self.scrollDelegate === scrollView.delegate, "UIScrollView has an existing delegate")
-                }
             }
-    }
-}
-
-@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
-extension ScrollViewReader where ID == Never {
-    public init(onScroll: @escaping (UIScrollView) -> Void, @ViewBuilder content: @escaping () -> Content) {
-        self.content = { _ in content() }
-        scrollDelegate = .init(onScroll: onScroll)
     }
 }
 
 private class ScrollDelegate: NSObject, UIScrollViewDelegate {
     var onScroll: (UIScrollView) -> Void
     func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll(scrollView) }
-    init(onScroll: @escaping (UIScrollView) -> Void) {
+    init(onScroll: @escaping (UIScrollView) -> Void = { _ in }) {
         self.onScroll = onScroll
     }
 }
@@ -114,7 +93,18 @@ private class ScrollDelegate: NSObject, UIScrollViewDelegate {
 public struct ScrollViewProxy<ID: Hashable> {
     fileprivate class Coordinator<ID: Hashable> {
         var frames = [ID: CGRect]()
-        weak var scrollView: UIScrollView?
+        var delegate = ScrollDelegate()
+        var onScroll: (CGPoint) -> () = { _ in }
+        weak var scrollView: UIScrollView? {
+            didSet {
+                if let existingDelegate = scrollView?.delegate {
+                    assert(existingDelegate === delegate, "UIScrollView has an existing delegate")
+                } else {
+                    scrollView?.delegate = delegate
+                    delegate.onScroll = { self.onScroll($0.contentOffset) }
+                }
+            }
+        }
     }
 
     fileprivate var coordinator = Coordinator<ID>()
@@ -141,10 +131,12 @@ public struct ScrollViewProxy<ID: Hashable> {
         let visibleFrame = frame(cellFrame, with: alignment)
         scrollView.scrollRectToVisible(visibleFrame, animated: animated)
     }
-
-    /// The point at which the origin of the content view is offset from the origin of the scroll view,
-    /// adjusted for automatic insets.
-    public internal(set) var offset: CGPoint = .zero
+    
+    /// Called with offset on scroll.
+    var onScroll: ((CGPoint) -> ()) {
+        get { self.coordinator.onScroll }
+        set { self.coordinator.onScroll = newValue } 
+    }
 
     private func frame(_ frame: CGRect, with alignment: Alignment) -> CGRect {
         guard let scrollView = coordinator.scrollView else { return frame }
