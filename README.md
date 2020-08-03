@@ -1,8 +1,8 @@
-As of June 22nd this is included in the SwiftUI beta. https://developer.apple.com/documentation/swiftui/scrollviewproxy
+As of June 22nd this is included in the SwiftUI 2 beta. https://developer.apple.com/documentation/swiftui/scrollviewproxy
 
-The Apple implementation uses just `.id(_:)` and I had update issues with that where Views with an id sometimes won't update when their ObservedObject changed. Maybe this has been fixed in the new SwiftUI beta.
+The Apple implementation uses just `.id(_:)` and I had update issues with that where Views with an id sometimes won't update when their ObservedObject changed. Maybe this has been fixed in the new SwiftUI 2 beta.
 
-Also the Apple implementation only supports iOS 14 so I think this repo is still useful.
+Also the Apple implementation only supports iOS 14 so I think this repo is still useful for backwards compatibility.
 
 # ScrollViewProxy
 
