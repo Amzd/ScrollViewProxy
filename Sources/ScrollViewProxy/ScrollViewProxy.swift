@@ -7,7 +7,7 @@ import SwiftUI
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
     /// Creates a ScrollView with a ScrollViewReader
-    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, onScroll: @escaping (UIScrollView) -> Void = { _ in }, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
+    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
         self.init(axes, showsIndicators: showsIndicators, content: {
             ScrollViewReader(content: content)
         })
@@ -59,7 +59,7 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
 
     @State private var proxy = ScrollViewProxy<ID>()
 
-    public init( @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
+    public init(@ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
         self.content = content
     }
 
@@ -71,10 +71,10 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
                     self.proxy.save(geometry: preference.geometry, for: preference.id)
                 }
             }
-            .onPreferenceChange(ScrollViewProxyPreferenceKey<ID>.self) { _ in
-                // seems this will not be called due to ScrollView/Preference issues
-                // https://stackoverflow.com/a/61765994/3019595
-            }
+//            .onPreferenceChange(ScrollViewProxyPreferenceKey<ID>.self) { _ in
+//                // seems this will not be called due to ScrollView/Preference issues
+//                // https://stackoverflow.com/a/61765994/3019595
+//            }
             .introspectScrollView { scrollView in
                 self.proxy.coordinator.scrollView = scrollView
             }
@@ -94,14 +94,13 @@ public struct ScrollViewProxy<ID: Hashable> {
     fileprivate class Coordinator<ID: Hashable> {
         var frames = [ID: CGRect]()
         var delegate = ScrollDelegate()
-        var onScroll: (CGPoint) -> () = { _ in }
+        
         weak var scrollView: UIScrollView? {
             didSet {
                 if let existingDelegate = scrollView?.delegate {
                     assert(existingDelegate === delegate, "UIScrollView has an existing delegate")
                 } else {
                     scrollView?.delegate = delegate
-                    delegate.onScroll = { self.onScroll($0.contentOffset) }
                 }
             }
         }
@@ -110,7 +109,14 @@ public struct ScrollViewProxy<ID: Hashable> {
     fileprivate var coordinator = Coordinator<ID>()
     fileprivate var space: UUID = UUID()
 
-    fileprivate init() {}
+    fileprivate init() {
+        coordinator.delegate.onScroll = { scrollView in
+            self.offset = CGPoint(
+                x: scrollView.contentOffset.x + scrollView.adjustedContentInset.horizontal,
+                y: scrollView.contentOffset.y + scrollView.adjustedContentInset.vertical
+            )
+        }
+    }
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
@@ -132,11 +138,8 @@ public struct ScrollViewProxy<ID: Hashable> {
         scrollView.scrollRectToVisible(visibleFrame, animated: animated)
     }
     
-    /// Called with offset on scroll.
-    public var onScroll: ((CGPoint) -> ()) {
-        get { self.coordinator.onScroll }
-        set { self.coordinator.onScroll = newValue } 
-    }
+    /// The scroll views contentOffset + adjustedContentInset
+    public private(set) var offset: CGPoint
 
     private func frame(_ frame: CGRect, with alignment: Alignment) -> CGRect {
         guard let scrollView = coordinator.scrollView else { return frame }
