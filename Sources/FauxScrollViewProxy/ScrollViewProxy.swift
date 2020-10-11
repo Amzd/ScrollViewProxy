@@ -3,6 +3,7 @@
 
 import Introspect
 import SwiftUI
+import Combine
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
@@ -81,30 +82,14 @@ public struct ScrollViewReader<ID: Hashable, Content: View>: View {
     }
 }
 
-private class ScrollDelegate: NSObject, UIScrollViewDelegate {
-    var onScroll: (UIScrollView) -> Void
-    func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll(scrollView) }
-    init(onScroll: @escaping (UIScrollView) -> Void = { _ in }) {
-        self.onScroll = onScroll
-    }
-}
-
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewProxy<ID: Hashable> {
     fileprivate class Coordinator<ID: Hashable> {
         var frames = [ID: CGRect]()
-        var delegate = ScrollDelegate()
-        var onScroll: (CGPoint) -> () = { _ in }
-        weak var scrollView: UIScrollView? {
-            didSet {
-                if let existingDelegate = scrollView?.delegate {
-                    assert(existingDelegate === delegate, "UIScrollView has an existing delegate")
-                } else {
-                    scrollView?.delegate = delegate
-                    delegate.onScroll = { self.onScroll($0.contentOffset) }
-                }
-            }
-        }
+        func update() { cancel = scrollView?.publisher(for: \.contentOffset).sink(receiveValue: onScroll) }
+        var cancel: AnyCancellable?
+        var onScroll: (CGPoint) -> () = { _ in } { didSet { update() } }
+        weak var scrollView: UIScrollView? { didSet { update() } }
     }
 
     fileprivate var coordinator = Coordinator<ID>()
