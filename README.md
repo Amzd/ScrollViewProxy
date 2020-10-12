@@ -37,14 +37,15 @@ public func scrollTo(_ alignment: Alignment, animated: Bool = true)
 public func scrollTo(_ id: ID, alignment: Alignment = .top, animated: Bool = true)
 ```
 
-To use the scroll to ID function you have to add a view with that ID to the ScrollViewProxy
+To use the scroll to ID function you have to add an ID to the view you want to scroll to  
 
 ```swift
 ScrollView { proxy in
     HStack { ... }
-        .id("someId", scrollView: proxy)
+        .scrollId("someId")
 }
 ```
+*This is the only part that is different from the SwiftUI 2.0 implementation because I don't know how to access Views by ID from the .id(_:) function
 
 ## Example
 
@@ -54,7 +55,7 @@ Everything put together in an example
 struct ScrollViewProxySimpleExample: View {
     
     @State var randomInt = Int.random(in: 0..<200)
-    @State var proxy: ScrollViewProxy<Int>? = nil
+    @State var proxy: ScrollViewProxy? = nil
     
     var body: some View {
         VStack {
@@ -65,7 +66,7 @@ struct ScrollViewProxySimpleExample: View {
                         Spacer()
                     }
                     .padding()
-                    .id(index, scrollView: proxy)
+                    .scrollId(index)
                 }.onAppear {
                     self.proxy = proxy
                 }
@@ -87,10 +88,25 @@ struct ScrollViewProxySimpleExample: View {
                 })
                 Spacer()
                 Button(action: { self.proxy?.scrollTo(.bottom) }, label: {
-                Text("Bottom")
+                    Text("Bottom")
                 })
             }
         }
     }
 }
 ```
+
+## Deintegrate
+
+Want to drop iOS 13 support and move to the SwiftUI 2.0 version?
+
+1. Remove the Package
+2. Add this extension:
+```swift
+extension View {
+    public func scrollId<ID: Hashable>(_ id: ID) -> some View {
+        id(id)
+    } 
+}
+```
+(Or replace all .scrollId with .id)

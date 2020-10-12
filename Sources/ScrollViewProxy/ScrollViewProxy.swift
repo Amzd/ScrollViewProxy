@@ -1,15 +1,14 @@
 // Created by Casper Zandbergen on 01/06/2020.
 // https://twitter.com/amzdme
-
-import SwiftUI
 import Introspect
+import SwiftUI
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
     /// Creates a ScrollView with a ScrollViewReader
-    public init<ID: Hashable, ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, @ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> ProxyContent) where Content == ScrollViewReader<ID, ProxyContent> {
+    public init<ProxyContent: View>(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, @ViewBuilder content: @escaping (ScrollViewProxy) -> ProxyContent) where Content == ScrollViewReader<ProxyContent> {
         self.init(axes, showsIndicators: showsIndicators, content: {
-            ScrollViewReader { content($0) }
+            ScrollViewReader(content: content)
         })
     }
 }
@@ -17,43 +16,81 @@ extension ScrollView {
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension View {
     /// Adds an ID to this view so you can scroll to it with `ScrollViewProxy.scrollTo(_:alignment:animated:)`
-    public func id<ID: Hashable>(_ id: ID, scrollView proxy: ScrollViewProxy<ID>) -> some View {
-        func save(geometry: GeometryProxy) -> some View {
-            proxy.save(geometry: geometry, for: id)
-            return Color.clear
-        }
+    public func scrollId<ID: Hashable>(_ id: ID) -> some View {
+        modifier(ScrollViewProxyPreferenceModifier(id: id))
+    }
+    
+    @available(swift, obsoleted: 1.0, renamed: "scrollId(_:)")
+    public func id<ID: Hashable>(_ id: ID, scrollView: ScrollViewProxy) -> some View { self }
+}
 
-        return self.background(GeometryReader(content: save(geometry:)))
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+struct ScrollViewProxyPreferenceData: Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    var geometry: GeometryProxy
+    var id: AnyHashable
+}
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+struct ScrollViewProxyPreferenceKey: PreferenceKey {
+    static var defaultValue: [ScrollViewProxyPreferenceData] { [] }
+    static func reduce(value: inout Value, nextValue: () -> Value) {
+        value.append(contentsOf: nextValue())
     }
 }
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
-public struct ScrollViewReader<ID: Hashable, Content: View>: View {
-    private var content: (ScrollViewProxy<ID>) -> Content
+struct ScrollViewProxyPreferenceModifier: ViewModifier {
+    let id: AnyHashable
+    func body(content: Content) -> some View {
+        content.background(GeometryReader { geometry in
+            Color.clear.preference(
+                key: ScrollViewProxyPreferenceKey.self,
+                value: [.init(geometry: geometry, id: self.id)]
+            )
+        })
+    }
+}
 
-    @State private var proxy = ScrollViewProxy<ID>()
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+public struct ScrollViewReader<Content: View>: View {
+    private var content: (ScrollViewProxy) -> Content
 
-    public init(@ViewBuilder content: @escaping (ScrollViewProxy<ID>) -> Content) {
+    @State private var proxy = ScrollViewProxy()
+    
+    public init(@ViewBuilder content: @escaping (ScrollViewProxy) -> Content) {
         self.content = content
     }
 
     public var body: some View {
         content(proxy)
             .coordinateSpace(name: proxy.space)
+            .transformPreference(ScrollViewProxyPreferenceKey.self) { preferences in
+                preferences.forEach { preference in
+                    self.proxy.save(geometry: preference.geometry, for: preference.id)
+                }
+            }
+            .onPreferenceChange(ScrollViewProxyPreferenceKey.self) { _ in
+                // seems this will not be called due to ScrollView/Preference issues
+                // https://stackoverflow.com/a/61765994/3019595
+            }
             .introspectScrollView { self.proxy.coordinator.scrollView = $0 }
     }
 }
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
-public struct ScrollViewProxy<ID: Hashable> {
-    fileprivate class Coordinator<ID: Hashable> {
-        var frames = [ID: CGRect]()
+public struct ScrollViewProxy {
+    fileprivate class Coordinator {
+        var frames = [AnyHashable: CGRect]()
         weak var scrollView: UIScrollView?
     }
-    fileprivate var coordinator = Coordinator<ID>()
+    fileprivate var coordinator = Coordinator()
     fileprivate var space: UUID = UUID()
-    
-    fileprivate init() { }
+
+    fileprivate init() {}
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
@@ -65,7 +102,7 @@ public struct ScrollViewProxy<ID: Hashable> {
     }
 
     /// Scrolls the view with ID to an edge or corner
-    public func scrollTo(_ id: ID, alignment: Alignment = .top, animated: Bool = true) {
+    public func scrollTo<ID: Hashable>(_ id: ID, alignment: Alignment = .top, animated: Bool = true) {
         guard let scrollView = coordinator.scrollView else { return }
         guard let cellFrame = coordinator.frames[id] else {
             return print("ID (\(id)) not found, make sure to add views with `.id(_:scrollView:)`")
@@ -120,7 +157,7 @@ public struct ScrollViewProxy<ID: Hashable> {
         return CGRect(origin: origin, size: visibleSize)
     }
 
-    fileprivate func save(geometry: GeometryProxy, for id: ID) {
+    fileprivate func save(geometry: GeometryProxy, for id: AnyHashable) {
         coordinator.frames[id] = geometry.frame(in: .named(space))
     }
 }
