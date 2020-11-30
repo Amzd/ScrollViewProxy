@@ -3,6 +3,29 @@
 import Introspect
 import SwiftUI
 
+#if os(macOS)
+public typealias PlatformScrollView = NSScrollView
+var visibleSizePath = \PlatformScrollView.visibleRect.size
+var adjustedContentInsetPath = \PlatformScrollView.contentInsets
+extension NSScrollView {
+    func scrollRectToVisible(_ rect: CGRect, animated: Bool) {
+        if animated {
+            NSAnimationContext.beginGrouping()
+            NSAnimationContext.current.duration = 0.3
+            scrollToVisible(rect)
+            NSAnimationContext.endGrouping()
+        } else {
+            scrollToVisible(rect)
+        }
+    }
+}
+#elseif os(iOS) || os(tvOS)
+public typealias PlatformScrollView = UIScrollView
+@available(iOS 12.0, *)
+var visibleSizePath = \PlatformScrollView.visibleSize
+var adjustedContentInsetPath = \PlatformScrollView.adjustedContentInset
+#endif
+
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
     /// Creates a ScrollView with a ScrollViewReader
@@ -85,7 +108,7 @@ public struct ScrollViewReader<Content: View>: View {
 public struct ScrollViewProxy {
     fileprivate class Coordinator {
         var frames = [AnyHashable: CGRect]()
-        weak var scrollView: UIScrollView?
+        weak var scrollView: PlatformScrollView?
     }
     fileprivate var coordinator = Coordinator()
     fileprivate var space: UUID = UUID()
@@ -115,9 +138,9 @@ public struct ScrollViewProxy {
     private func frame(_ frame: CGRect, with alignment: Alignment) -> CGRect {
         guard let scrollView = coordinator.scrollView else { return frame }
 
-        var visibleSize = scrollView.visibleSize
-        visibleSize.width -= scrollView.adjustedContentInset.horizontal
-        visibleSize.height -= scrollView.adjustedContentInset.vertical
+        var visibleSize = scrollView[keyPath: visibleSizePath]
+        visibleSize.width -= scrollView[keyPath: adjustedContentInsetPath].horizontal
+        visibleSize.height -= scrollView[keyPath: adjustedContentInsetPath].vertical
 
         var origin = CGPoint.zero
         switch alignment {
@@ -162,6 +185,18 @@ public struct ScrollViewProxy {
     }
 }
 
+#if os(macOS)
+extension NSEdgeInsets {
+    /// top + bottom
+    var vertical: CGFloat {
+        return top + bottom
+    }
+    /// left + right
+    var horizontal: CGFloat {
+        return left + right
+    }
+}
+#elseif os(iOS) || os(tvOS)
 extension UIEdgeInsets {
     /// top + bottom
     var vertical: CGFloat {
@@ -172,3 +207,5 @@ extension UIEdgeInsets {
         return left + right
     }
 }
+#endif
+
