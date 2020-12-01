@@ -5,17 +5,18 @@ import SwiftUI
 
 #if os(macOS)
 public typealias PlatformScrollView = NSScrollView
-var visibleSizePath = \PlatformScrollView.visibleRect.size
+var visibleSizePath = \PlatformScrollView.documentVisibleRect.size
 var adjustedContentInsetPath = \PlatformScrollView.contentInsets
+var contentSizePath = \PlatformScrollView.documentView!.frame.size
 extension NSScrollView {
     func scrollRectToVisible(_ rect: CGRect, animated: Bool) {
         if animated {
             NSAnimationContext.beginGrouping()
             NSAnimationContext.current.duration = 0.3
-            scrollToVisible(rect)
+            contentView.scrollToVisible(rect)
             NSAnimationContext.endGrouping()
         } else {
-            scrollToVisible(rect)
+            contentView.scrollToVisible(rect)
         }
     }
 }
@@ -24,6 +25,7 @@ public typealias PlatformScrollView = UIScrollView
 @available(iOS 12.0, *)
 var visibleSizePath = \PlatformScrollView.visibleSize
 var adjustedContentInsetPath = \PlatformScrollView.adjustedContentInset
+var contentSizePath = \PlatformScrollView.contentSize
 #endif
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
@@ -128,7 +130,7 @@ public struct ScrollViewProxy {
     public func scrollTo<ID: Hashable>(_ id: ID, alignment: Alignment = .top, animated: Bool = true) {
         guard let scrollView = coordinator.scrollView else { return }
         guard let cellFrame = coordinator.frames[id] else {
-            return print("ID (\(id)) not found, make sure to add views with `.id(_:scrollView:)`")
+            return print("ID (\(id)) not found, make sure to add views with `.id(_:scrollView:)`. Did find: \(coordinator.frames)")
         }
 
         let visibleFrame = frame(cellFrame, with: alignment)
@@ -175,8 +177,8 @@ public struct ScrollViewProxy {
             fatalError("Not implemented")
         }
 
-        origin.x = max(0, min(origin.x, scrollView.contentSize.width - visibleSize.width))
-        origin.y = max(0, min(origin.y, scrollView.contentSize.height - visibleSize.height))
+        origin.x = max(0, min(origin.x, scrollView[keyPath: contentSizePath].width - visibleSize.width))
+        origin.y = max(0, min(origin.y, scrollView[keyPath: contentSizePath].height - visibleSize.height))
         return CGRect(origin: origin, size: visibleSize)
     }
 
