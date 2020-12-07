@@ -52,44 +52,53 @@ ScrollView { proxy in
 Everything put together in an example
 
 ```swift
-struct ScrollViewProxySimpleExample: View {
+struct ScrollViewProxyExample: View {
     
     @State var randomInt = Int.random(in: 0..<200)
     @State var proxy: ScrollViewProxy? = nil
+    @State var offset: CGPoint = .zero
     
     var body: some View {
-        VStack {
-            ScrollView { proxy in
-                ForEach(0..<200) { index in
-                    VStack {
-                        Text("\(index)").font(.title)
-                        Spacer()
+        // GeometryReader for safeAreaInsets on Sticky View
+        GeometryReader { geometry in 
+            VStack {
+                ScrollView { proxy in
+                    Text("Sticky View")
+                        .background(Color.white)
+                        .onReceive(proxy.offset) { self.offset = $0 }
+                        .offset(x: offset.x, y: offset.y + geometry.safeAreaInsets.top)
+                        .zIndex(1)
+                    
+                    VStack(spacing: 20) {
+                        ForEach(0..<200) { index in
+                            HStack {
+                                Spacer()
+                                Text("Item: \(index)").font(.title)
+                                Spacer()
+                            }.scrollId(index)
+                        }
                     }
-                    .padding()
-                    .scrollId(index)
-                }.onAppear {
-                    self.proxy = proxy
+                    .zIndex(0)
+                    .onAppear {
+                        self.proxy = proxy
+                    }
                 }
-            }
-            HStack {
-                Button(action: {
-                    self.proxy?.scrollTo(self.randomInt, alignment: .center)
-                    self.randomInt = Int.random(in: 0..<200)
-                }, label: {
-                    Text("Go to \(self.randomInt)")
-                })
-                Spacer()
-                Button(action: { self.proxy?.scrollTo(.top) }, label: {
-                    Text("Top")
-                })
-                Spacer()
-                Button(action: { self.proxy?.scrollTo(.center) }, label: {
-                    Text("Center")
-                })
-                Spacer()
-                Button(action: { self.proxy?.scrollTo(.bottom) }, label: {
-                    Text("Bottom")
-                })
+                HStack {
+                    Button(action: {
+                        self.proxy?.scrollTo(self.randomInt, alignment: .center)
+                        self.randomInt = Int.random(in: 0..<200)
+                    }, label: {
+                        Text("Go to \(self.randomInt)")
+                    })
+                    Spacer()
+                    Button(action: { self.proxy?.scrollTo(.bottom) }, label: {
+                        Text("Bottom")
+                    })
+                    Spacer()
+                    Button(action: { self.proxy?.scrollTo(.center) }, label: {
+                        Text("Center")
+                    })
+                }.padding()
             }
         }
     }

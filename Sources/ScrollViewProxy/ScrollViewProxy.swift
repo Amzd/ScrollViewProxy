@@ -2,12 +2,25 @@
 // https://twitter.com/amzdme
 import Introspect
 import SwiftUI
+import Combine
+
+// MARK: Fix for name collision when using SwiftUI 2.0
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+public typealias AmzdScrollViewProxy = ScrollViewProxy
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+public typealias AmzdScrollViewReader = ScrollViewReader
+
+// MARK: Platform specifics
 
 #if os(macOS)
 public typealias PlatformScrollView = NSScrollView
+
 var visibleSizePath = \PlatformScrollView.documentVisibleRect.size
 var adjustedContentInsetPath = \PlatformScrollView.contentInsets
 var contentSizePath = \PlatformScrollView.documentView!.frame.size
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension NSScrollView {
     func scrollRectToVisible(_ rect: CGRect, animated: Bool) {
         if animated {
@@ -19,14 +32,49 @@ extension NSScrollView {
             contentView.scrollToVisible(rect)
         }
     }
+    var offsetPublisher: OffsetPublisher {
+        publisher(for: \.contentView.bounds.origin).eraseToAnyPublisher()
+    }
+}
+
+extension NSEdgeInsets {
+    /// top + bottom
+    var vertical: CGFloat {
+        return top + bottom
+    }
+    /// left + right
+    var horizontal: CGFloat {
+        return left + right
+    }
 }
 #elseif os(iOS) || os(tvOS)
 public typealias PlatformScrollView = UIScrollView
-@available(iOS 12.0, *)
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 var visibleSizePath = \PlatformScrollView.visibleSize
 var adjustedContentInsetPath = \PlatformScrollView.adjustedContentInset
 var contentSizePath = \PlatformScrollView.contentSize
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+extension UIScrollView {
+    var offsetPublisher: OffsetPublisher {
+        publisher(for: \.contentOffset).eraseToAnyPublisher()
+    }
+}
+
+extension UIEdgeInsets {
+    /// top + bottom
+    var vertical: CGFloat {
+        return top + bottom
+    }
+    /// left + right
+    var horizontal: CGFloat {
+        return left + right
+    }
+}
 #endif
+
+// MARK: Helper extensions
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 extension ScrollView {
@@ -48,6 +96,8 @@ extension View {
     @available(swift, obsoleted: 1.0, renamed: "scrollId(_:)")
     public func id<ID: Hashable>(_ id: ID, scrollView: ScrollViewProxy) -> some View { self }
 }
+
+// MARK: Preferences
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 struct ScrollViewProxyPreferenceData: Equatable {
@@ -80,6 +130,8 @@ struct ScrollViewProxyPreferenceModifier: ViewModifier {
     }
 }
 
+// MARK: ScrollViewReader
+
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewReader<Content: View>: View {
     private var content: (ScrollViewProxy) -> Content
@@ -102,9 +154,17 @@ public struct ScrollViewReader<Content: View>: View {
                 // seems this will not be called due to ScrollView/Preference issues
                 // https://stackoverflow.com/a/61765994/3019595
             }
-            .introspectScrollView { self.proxy.coordinator.scrollView = $0 }
+            .introspectScrollView {
+                self.proxy.coordinator.scrollView = $0
+                self.proxy.offset = $0.offsetPublisher
+            }
     }
 }
+
+// MARK: ScrollViewProxy
+
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+public typealias OffsetPublisher = AnyPublisher<CGPoint, Never>
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewProxy {
@@ -116,6 +176,8 @@ public struct ScrollViewProxy {
     fileprivate var space: UUID = UUID()
 
     fileprivate init() {}
+    
+    public var offset: OffsetPublisher = Just(.zero).eraseToAnyPublisher()
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
@@ -186,28 +248,4 @@ public struct ScrollViewProxy {
         coordinator.frames[id] = geometry.frame(in: .named(space))
     }
 }
-
-#if os(macOS)
-extension NSEdgeInsets {
-    /// top + bottom
-    var vertical: CGFloat {
-        return top + bottom
-    }
-    /// left + right
-    var horizontal: CGFloat {
-        return left + right
-    }
-}
-#elseif os(iOS) || os(tvOS)
-extension UIEdgeInsets {
-    /// top + bottom
-    var vertical: CGFloat {
-        return top + bottom
-    }
-    /// left + right
-    var horizontal: CGFloat {
-        return left + right
-    }
-}
-#endif
 
