@@ -179,7 +179,7 @@ public struct ScrollViewProxy {
     fileprivate init() {}
     
     /// A publisher that publishes changes to the scroll views offset
-    public private(set) var offset: OffsetPublisher = Just(.zero).eraseToAnyPublisher()
+    public fileprivate(set) var offset: OffsetPublisher = Just(.zero).eraseToAnyPublisher()
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
