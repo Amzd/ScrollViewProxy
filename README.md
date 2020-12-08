@@ -27,9 +27,12 @@ List {
 }
 ```
 
-The ScrollViewProxy currently has two functions you can call
+The ScrollViewProxy currently has one variable and two functions you can call
 
 ```swift
+/// A publisher that publishes changes to the scroll views offset
+public var offset: OffsetPublisher
+
 /// Scrolls to an edge or corner
 public func scrollTo(_ alignment: Alignment, animated: Bool = true)
 
