@@ -1,12 +1,7 @@
 // Created by Casper Zandbergen on 01/06/2020.
 // https://twitter.com/amzdme
 
-#if canImport(Introspect)
-import Introspect
-#elseif canImport(AmzdIntrospect)
-// CocoaPods
 import AmzdIntrospect
-#endif
 import SwiftUI
 import Combine
 
