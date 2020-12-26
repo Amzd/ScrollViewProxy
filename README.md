@@ -40,7 +40,7 @@ public func scrollTo(_ alignment: Alignment, animated: Bool = true)
 public func scrollTo(_ id: ID, alignment: Alignment = .top, animated: Bool = true)
 ```
 
-To use the scroll to ID function you have to add an ID to the view you want to scroll to  
+To use the scroll to ID function you have to add an ID to the view you want to scroll to
 
 ```swift
 ScrollView { proxy in
@@ -48,7 +48,7 @@ ScrollView { proxy in
         .scrollId("someId")
 }
 ```
-*This is the only part that is different from the SwiftUI 2.0 implementation because I don't know how to access Views by ID from the .id(_:) function
+*This is the only part that is different from the SwiftUI 2.0 implementation because I don't know how to access Views by ID from the `.id(_:)` function*
 
 ## Example
 
