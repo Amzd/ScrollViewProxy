@@ -114,6 +114,7 @@ Want to drop iOS 13 support and move to the SwiftUI 2.0 version?
 
 1. Remove the Package
 2. Add this extension:
+
 ```swift
 extension View {
     public func scrollId<ID: Hashable>(_ id: ID) -> some View {
@@ -121,4 +122,5 @@ extension View {
     } 
 }
 ```
+
 (Or replace all .scrollId with .id)
