@@ -1,7 +1,7 @@
 // Created by Casper Zandbergen on 01/06/2020.
 // https://twitter.com/amzdme
 
-import AmzdIntrospect
+import Introspect
 import SwiftUI
 import Combine
 

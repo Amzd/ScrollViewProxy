@@ -2,12 +2,12 @@
   "object": {
     "pins": [
       {
-        "package": "AmzdIntrospect",
-        "repositoryURL": "https://github.com/Amzd/SwiftUI-Introspect.git",
+        "package": "Introspect",
+        "repositoryURL": "https://github.com/siteline/SwiftUI-Introspect.git",
         "state": {
           "branch": null,
-          "revision": "daa2ee72339db6b7490e29815afaa6e50b1cd208",
-          "version": "0.1.3"
+          "revision": "36ecf80429d00a4cd1e81fbfe4655b1d99ebd651",
+          "version": "0.1.2"
         }
       }
     ]
