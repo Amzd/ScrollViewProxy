@@ -156,8 +156,10 @@ public struct ScrollViewReader<Content: View>: View {
                 // https://stackoverflow.com/a/61765994/3019595
             }
             .introspectScrollView {
-                self.proxy.coordinator.scrollView = $0
-                self.proxy.offset = $0.offsetPublisher
+                if self.proxy.coordinator.scrollView != $0 {
+                    self.proxy.coordinator.scrollView = $0
+                    self.proxy.offset = $0.offsetPublisher
+                }
             }
     }
 }
