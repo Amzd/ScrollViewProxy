@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.source           = { :git => 'https://github.com/Amzd/ScrollViewProxy.git', :tag => s.version.to_s }
   s.dependency 'Introspect', '>= 0.1.2'
   s.source_files = 'Sources/**/*.swift'
-    
+  
   s.swift_version = '5.1'
   s.ios.deployment_target = '11.0'
   s.tvos.deployment_target = '11.0'
