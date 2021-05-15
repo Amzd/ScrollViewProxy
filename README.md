@@ -4,6 +4,10 @@ The Apple implementation uses just `.id(_:)` and I had update issues with that w
 
 Also the Apple implementation only supports iOS 14 so I think this repo is still useful for backwards compatibility.
 
+**Note:** An important difference between this library and Apples implementation is that the ScrollViewReader goes *inside* the ScrollView. If you place the ScrollViewReader around the ScrollView the scrollTo function will not scroll to the correct location (due to its coordinateSpace not being part of the scrolling content). I considered fixing this to align with Apple but that would break backwards compatibility with projects already using ScrollViewProxy.
+
+Maybe it's possible to detect if we're inside or outside of a ScrollView in the reader but then how do we handle nested ScrollViews? If you have any ideas please open an Issue/PR or email me.
+
 # ScrollViewProxy
 
 Adds `ScrollViewReader` and `ScrollViewProxy` that help you scroll to locations in a ScrollView
