@@ -61,6 +61,14 @@ extension UIScrollView {
     var offsetPublisher: OffsetPublisher {
         publisher(for: \.contentOffset).eraseToAnyPublisher()
     }
+    
+    var contentSizePublisher:ContentSizePublisher {
+        publisher(for: \.contentSize).eraseToAnyPublisher()
+    }
+    
+    var framePublisher:FramePublisher {
+        publisher(for: \.frame).eraseToAnyPublisher()
+    }
 }
 
 extension UIEdgeInsets {
@@ -159,6 +167,8 @@ public struct ScrollViewReader<Content: View>: View {
                 if self.proxy.coordinator.scrollView != $0 {
                     self.proxy.coordinator.scrollView = $0
                     self.proxy.offset = $0.offsetPublisher
+                    self.proxy.contentSize = $0.contentSizePublisher
+                    self.proxy.frame = $0.framePublisher
                 }
             }
     }
@@ -168,6 +178,10 @@ public struct ScrollViewReader<Content: View>: View {
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public typealias OffsetPublisher = AnyPublisher<CGPoint, Never>
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+public typealias ContentSizePublisher = AnyPublisher<CGSize, Never>
+@available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
+public typealias FramePublisher = AnyPublisher<CGRect, Never>
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewProxy {
@@ -182,6 +196,17 @@ public struct ScrollViewProxy {
     
     /// A publisher that publishes changes to the scroll views offset
     public fileprivate(set) var offset: OffsetPublisher = Just(.zero).eraseToAnyPublisher()
+    ///  /// A publisher that publishes changes to the scroll views contentSize.
+    public fileprivate(set) var contentSize:ContentSizePublisher = Just(.zero).eraseToAnyPublisher()
+    /// A publisher that publishes changes to the scroll views frame.
+    public fileprivate(set) var frame: FramePublisher = Just(.zero).eraseToAnyPublisher()
+    
+    /// A publisher that publishes latest changes of `offset`,`contentSize` and `frame` all at once.
+    public var offsetSizeAndFrame: AnyPublisher<(CGPoint, ContentSizePublisher.Output, FramePublisher.Output), Never> {
+        return offset
+            .combineLatest(contentSize, frame)
+            .eraseToAnyPublisher()
+    }
 
     /// Scrolls to an edge or corner
     public func scrollTo(_ alignment: Alignment, animated: Bool = true) {
