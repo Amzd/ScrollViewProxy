@@ -185,14 +185,48 @@ public typealias FramePublisher = AnyPublisher<CGRect, Never>
 
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct ScrollViewProxy {
-    fileprivate class Coordinator {
+    fileprivate class Coordinator: NSObject, UIScrollViewDelegate {
         var frames = [AnyHashable: CGRect]()
-        weak var scrollView: PlatformScrollView?
+        weak var scrollView: PlatformScrollView? {
+            didSet {
+                self.scrollView?.delegate = self
+            }
+        }
+        let swipeDirectionPublisher = PassthroughSubject<ProxySwipeDirection, Never>()
+        
+        
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            
+            var swipeDirection:ProxySwipeDirection {
+                if(scrollView.panGestureRecognizer.translation(in: scrollView.superview).y > 0) {
+                    // User is scrolling towards the top of the list.
+                    // ie: Is Swiping down.
+                    return .down
+                }
+                else {
+                    // User is scrolling towards the bottom of the list.
+                    // ie: is Swiping up.
+                    // Note: We are checking contentOffset here because on special cases such as programatically scrolling to the top sends wrong direction. So we handle that case by checking y-offset.
+                    if scrollView.contentOffset.y <= 0 {
+                        return .down
+                    }
+                    return .up
+                }
+                
+            }
+            swipeDirectionPublisher.send(swipeDirection)
+        }
     }
     fileprivate var coordinator = Coordinator()
     fileprivate var space: UUID = UUID()
+    private var subscriptions = Set<AnyCancellable>()
 
-    fileprivate init() {}
+    fileprivate init() {
+        coordinator
+            .swipeDirectionPublisher
+            .subscribe(self.swipeDirectionPublisher)
+            .store(in: &subscriptions)
+    }
     
     /// A publisher that publishes changes to the scroll views offset
     public fileprivate(set) var offset: OffsetPublisher = Just(.zero).eraseToAnyPublisher()
@@ -200,6 +234,8 @@ public struct ScrollViewProxy {
     public fileprivate(set) var contentSize:ContentSizePublisher = Just(.zero).eraseToAnyPublisher()
     /// A publisher that publishes changes to the scroll views frame.
     public fileprivate(set) var frame: FramePublisher = Just(.zero).eraseToAnyPublisher()
+    
+    public let swipeDirectionPublisher = PassthroughSubject<ProxySwipeDirection, Never>()
     
     /// A publisher that publishes latest changes of `offset`,`contentSize` and `frame` all at once.
     public var offsetSizeAndFrame: AnyPublisher<(CGPoint, ContentSizePublisher.Output, FramePublisher.Output), Never> {
