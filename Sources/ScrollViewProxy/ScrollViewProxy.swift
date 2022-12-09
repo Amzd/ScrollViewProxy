@@ -196,7 +196,10 @@ public struct ScrollViewProxy {
         
         
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            
+            fireSwipeDirectionPublisher(scrollView: scrollView)
+        }
+        
+        private func fireSwipeDirectionPublisher(scrollView: UIScrollView) {
             var swipeDirection:ProxySwipeDirection {
                 if(scrollView.panGestureRecognizer.translation(in: scrollView.superview).y > 0) {
                     // User is scrolling towards the top of the list.
@@ -212,11 +215,11 @@ public struct ScrollViewProxy {
                     }
                     return .up
                 }
-                
             }
             swipeDirectionPublisher.send(swipeDirection)
         }
     }
+    
     fileprivate var coordinator = Coordinator()
     fileprivate var space: UUID = UUID()
     private var subscriptions = Set<AnyCancellable>()
