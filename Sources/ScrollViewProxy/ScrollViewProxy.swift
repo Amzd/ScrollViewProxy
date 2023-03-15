@@ -249,6 +249,9 @@ public struct ScrollViewProxy {
     }
 
     fileprivate func save(geometry: GeometryProxy, for id: AnyHashable) {
+        if coordinator.frames[id] != nil {
+            return
+        }
         coordinator.frames[id] = geometry.frame(in: .named(space))
     }
 }
